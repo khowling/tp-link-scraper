@@ -117,7 +117,7 @@ let app = http.createServer(async (req, res) => {
         res.end(json_res)
     } else {
         let out = "", idx = 0
-        for (let port of ["router", "mum_office", "master_bed", "dad_office", "living_room", "kitchen", "girl_room", "boy_room"]) {
+        for (let port of ["router", "mum_office", "master_bdrm", "dad_office", "living_room", "kitchen", "girl_bdrm", "boy_bdrm"]) {
             out += `managed_switch_TxPkt{room="${port}"} ${json_res.pkts[idx]}` + '\n'
             out += `managed_switch_RxPkt{room="${port}"} ${json_res.pkts[idx + 2]}` + '\n'
             idx += 4
