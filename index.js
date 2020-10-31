@@ -134,7 +134,7 @@ let app = http.createServer(async (req, res) => {
             res.end(out)
         }
     } else if (req.url === '/grafana') {
-        res.writeHead(302, { 'Location': `http://${req.headers.host.split(":")[0]}:3000` })
+        res.writeHead(302, { 'Location': `http://${req.headers.host.split(":")[0]}:3000/d/T3OrKihMk/our-house?orgId=1` })
         res.end()
 
     } else if (req.url.startsWith('/setport?')) {
@@ -207,7 +207,7 @@ let app = http.createServer(async (req, res) => {
 });
 
 // Start the server on port 3000
-app.listen(3998, '127.0.0.1');
+app.listen(3998);
 console.log('Node server running on port 3998');
 
 
