@@ -29,7 +29,7 @@ let app = http.createServer(async (req, res) => {
     if (req.url === '/metrics') {
         // Set a response type of plain text for the response
         try {
-            const json_res = await get_table_info(process.env.ROUTER_STATS_URL, "GET", { "Authorization": process.env.ROUTER_STATS_URL_AUTH, "referer": process.env.ROUTER_STATS_URL })
+            const json_res = await get_table_info(process.env.ROUTER_URL + "/sky_system.html", "GET", { "Authorization": process.env.ROUTER_STATS_URL_AUTH, "referer": process.env.ROUTER_URL + "/sky_system.html" })
 
 
             let out = ""
@@ -55,3 +55,20 @@ app.listen(3997);
 console.log('Node server running on port 3997');
 
 
+async function exitHandler(options, exitCode) {
+    if (options.cleanup) {
+        console.log('loggin out')
+        await fetch(process.env.ROUTER_URL + "/sky_logout.html")
+    }
+    if (exitCode || exitCode === 0) console.log(exitCode);
+    if (options.exit) process.exit();
+}
+
+//do something when app is closing
+process.on('exit', exitHandler.bind(null, { cleanup: true }));
+//catches ctrl+c event
+process.on('SIGINT', exitHandler.bind(null, { exit: true }));
+
+// catches "kill pid" (for example: nodemon restart)
+process.on('SIGUSR1', exitHandler.bind(null, { exit: true }));
+process.on('SIGUSR2', exitHandler.bind(null, { exit: true }));
