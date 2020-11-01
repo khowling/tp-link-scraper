@@ -35,7 +35,7 @@ let app = http.createServer(async (req, res) => {
             let out = ""
             for (port of ["WAN", "LAN"]) {
                 for (label_idx of [1, 2, 3, 4, 5]) {
-                    out += `skyrouter_${PORT_LABELS[label_idx].replace(/ /g, "_")}{port="${port}"} ${json_res[port][PORT_LABELS[label_idx]]}` + '\n'
+                    out += `skyrouter_${PORT_LABELS[label_idx].replace(/[ \/]/g, "_")}{port="${port}"} ${json_res[port][PORT_LABELS[label_idx]]}` + '\n'
                 }
             }
             res.writeHead(200, { 'Content-Type': 'text/plain' });
