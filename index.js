@@ -120,7 +120,7 @@ let app = http.createServer(async (req, res) => {
                 out += `
                 <tr>
                     <td>${PORT_MAPPING[port]}</td>
-                    <td><a href="/setport?portid=${parseInt(port) + 1}&state=${json_res.state[port] ? "0" : "1"}&speed=${json_res.spd_cfg[port]}&flowcontrol=${json_res.fc_cfg[port]}">${["Disabled", "Enabled"][json_res.state[port]]}<a/></td>
+                    <td><a href="setport?portid=${parseInt(port) + 1}&state=${json_res.state[port] ? "0" : "1"}&speed=${json_res.spd_cfg[port]}&flowcontrol=${json_res.fc_cfg[port]}">${["Disabled", "Enabled"][json_res.state[port]]}<a/></td>
                     <td>${SPEED[json_res.spd_cfg[port]]} (${SPEED[json_res.spd_act[port]]})</td>
                     <td>${FLOW[json_res.fc_cfg[port]]} (${FLOW[json_res.fc_act[port]]})</td>
                 </tr>`
