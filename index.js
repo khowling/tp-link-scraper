@@ -23,10 +23,14 @@ async function get_allinfo(url, method = 'GET', headers = {}, body) {
     }
 
     const page_data = await auth_fetch(url, method, headers, body)
-    const page_data_match = page_data.match(/all_info = ([\s\S]*?);/)
+    const all_info = page_data.match(/all_info = ([\s\S]*?);/)
 
-    if (page_data_match && page_data_match.length > 0) {
-        return JSON.parse(page_data_match[1].replace(/(['"])?([a-z0-9A-Z_]+)(['"])?:/g, '"$2": '))
+    const bcInfo = page_data.match(/bcInfo = new Array\(([\s\S]*?)\)/)
+
+    if (all_info && all_info.length > 0) {
+        return JSON.parse(all_info[1].replace(/(['"])?([a-z0-9A-Z_]+)(['"])?:/g, '"$2": '))
+    } else if (bcInfo && bcInfo.length > 0) {
+        return bcInfo[1].replace('\n','').split(',').filter((a,i) => i%3 === 1).map(i => Math.floor(parseInt(i.replace('\n',''))/1000))
     } else {
         throw new Error(`page doesnt contain all_info`)
     }
@@ -35,7 +39,6 @@ async function get_allinfo(url, method = 'GET', headers = {}, body) {
 
 const PORT_MAPPING = ["hub", "mum_office", "master_bdrm", "dad_office", "living_room", "kitchen", "girl_bdrm", "boy_bdrm"]
 const SPEED = ["Link Down", "Auto", "10MH", "10MF", "100MH", "100MF", "1000MF"]
-const FLOW = ["Off", "On"]
 
 const http = require('http')
 
@@ -65,11 +68,35 @@ let app = http.createServer(async (req, res) => {
     } else if (req.url.startsWith('/setport?')) {
 
         try {
-            const port_updates = req.url.split('?')[1]
-            console.log(`Updating port : ${port_updates}`)
+            const param = req.url.match('[?&]param=([^&]+)'),
+                  paramval = param ? decodeURIComponent(param[1]) : null
+                  returl = req.url.match('[?&]returl=([^&]+)'),
+                  returlval = returl ? decodeURIComponent( returl[1]) : null
+
+            console.log(`Updating port : ${paramval}`)
             // portid=${port}&state=${state}&speed=${speed}&flowcontrol=${flowcontrol}&apply=Apply
-            const json_res = await get_allinfo(`${process.env.SWITCH_MANAGEMENT_URL}/port_setting.cgi?${port_updates}`, 'GET', { "referer": `${process.env.SWITCH_MANAGEMENT_URL}/PortSettingRpm.htm` })
-            res.writeHead(302, { 'Location': '/' })
+            const json_res = await get_allinfo(`${process.env.SWITCH_MANAGEMENT_URL}/port_setting.cgi?${paramval}`, 'GET', { "referer": `${process.env.SWITCH_MANAGEMENT_URL}/PortSettingRpm.htm` })
+            res.writeHead(302, { 'Location': returlval || '/' })
+            res.end()
+        } catch (e) {
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end(e)
+        }
+
+    } else if (req.url.startsWith('/setSpeed?')) {
+
+        try {
+            const form = req.url.match('[?&]form=([^&]+)'),
+                  formval = form ? decodeURIComponent(form[1]) : null
+                  returl = req.url.match('[?&]returl=([^&]+)'),
+                  returlval = returl ? decodeURIComponent( returl[1]) : null
+
+            console.log(`Updating port : ${formval}`)
+            // portid=${port}&state=${state}&speed=${speed}&flowcontrol=${flowcontrol}&apply=Apply
+            const json_res = await get_allinfo(`${process.env.SWITCH_MANAGEMENT_URL}/qos_bandwidth_set.cgi`, 'POST', { 
+                "content-type": "application/x-www-form-urlencoded",
+                "referer": `${process.env.SWITCH_MANAGEMENT_URL}/QosBandWidthControlRpm.htm` }, formval)
+            res.writeHead(302, { 'Location': returlval || '/' })
             res.end()
         } catch (e) {
             res.writeHead(500, { 'Content-Type': 'text/plain' });
@@ -81,6 +108,7 @@ let app = http.createServer(async (req, res) => {
         try {
 
             const json_res = await get_allinfo(`${process.env.SWITCH_MANAGEMENT_URL}/PortSettingRpm.htm`)
+            const port_res = await get_allinfo(`${process.env.SWITCH_MANAGEMENT_URL}/QosBandWidthControlRpm.htm`)
 
             let out = `
             <html>
@@ -112,7 +140,7 @@ let app = http.createServer(async (req, res) => {
                             <th>Room (<a href="/grafana">Metrics</a>)</th>
                             <th>Enabled (toggle)</th>
                             <th>Speed (actual) </th>
-                            <th>Flow Ctrl (actual)</th>
+                            <th>QoS</th>
                         </tr>`
 
 
@@ -120,9 +148,13 @@ let app = http.createServer(async (req, res) => {
                 out += `
                 <tr>
                     <td>${PORT_MAPPING[port]}</td>
-                    <td><a href="setport?portid=${parseInt(port) + 1}&state=${json_res.state[port] ? "0" : "1"}&speed=${json_res.spd_cfg[port]}&flowcontrol=${json_res.fc_cfg[port]}">${["Disabled", "Enabled"][json_res.state[port]]}<a/></td>
+                    <td>
+                        <a href="javascript:window.location.href=\'setport?param=\' + encodeURIComponent(\'portid=${parseInt(port) + 1}&state=${json_res.state[port] ? "0" : "1"}&speed=${json_res.spd_cfg[port]}&flowcontrol=${json_res.fc_cfg[port]}\') + \'&returl=\' + encodeURIComponent(window.location.href)">${["Disabled", "Enabled"][json_res.state[port]]}<a/>
+                    </td>
                     <td>${SPEED[json_res.spd_cfg[port]]} (${SPEED[json_res.spd_act[port]]})</td>
-                    <td>${FLOW[json_res.fc_cfg[port]]} (${FLOW[json_res.fc_act[port]]})</td>
+                    <td>
+                        <a href="javascript:window.location.href=\'setSpeed?form=\' + encodeURIComponent(\'igrRate=0&egrRate=${port_res[port] === 0 ? 20000 : port_res[port] === 20 ? 40000 : 0}&sel_${parseInt(port) + 1}=1&applay=Apply\') + \'&returl=\' + encodeURIComponent(window.location.href)">${port_res[port] ? `${port_res[port]} Mbps` : 'Unlimited'}<a/>
+                    </td>
                 </tr>`
             }
             out += `
